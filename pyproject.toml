@@ -1,0 +1,80 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "forgegravity"
+version = "0.1.0"
+description = "Open-source platform for creating high-quality AI training datasets"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [{ name = "ForgeGravity Team" }]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "typer[all]>=0.9.0",
+    "rich>=13.0",
+    "httpx>=0.27",
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0",
+    "litellm>=1.40",
+    "trafilatura>=1.8",
+    "aiosqlite>=0.19",
+    "pyarrow>=15.0",
+    "beautifulsoup4>=4.12",
+    "pyyaml>=6.0",
+]
+
+[project.scripts]
+forge = "forge.cli.main:app"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "respx>=0.21",
+    "ruff>=0.5",
+    "mypy>=1.10",
+    "coverage[toml]>=7.0",
+]
+
+[project.entry-points."forge.stages"]
+# Built-in stages register here
+
+[project.entry-points."forge.templates"]
+# Built-in templates register here
+
+[project.entry-points."forge.formats"]
+# Built-in formats register here
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/forge"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.coverage.run]
+source = ["forge"]

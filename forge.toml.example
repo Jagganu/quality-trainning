@@ -1,0 +1,44 @@
+# ForgeGravity Configuration
+# Copy this file to forge.toml to customize settings.
+
+[general]
+output_dir = "./output"
+default_provider = "openai"
+default_model = "gpt-4o-mini"
+log_level = "INFO"
+
+[collect]
+max_pages = 50
+max_documents = 20
+requests_per_second = 2.0
+respect_robots_txt = true
+user_agent = "ForgeGravity/0.1 (dataset-builder)"
+
+[clean]
+min_content_length = 100
+max_chunk_size = 4000
+remove_boilerplate = true
+language = "en"
+
+[generate]
+default_format = "reasoning"
+max_samples = 100
+batch_size = 10
+max_concurrent = 5
+temperature = 0.7
+
+[verify]
+enabled = true
+critic_model = "gpt-4o-mini"
+scorer_model = "gpt-4o-mini"
+min_pass_rate = 0.6
+min_score = 0.7
+
+[budget]
+max_cost_usd = 50.0
+warn_at_percent = 80
+
+[quality_gates]
+max_duplicate_rate = 0.10
+min_diversity_score = 0.5
+min_verification_score = 0.7
