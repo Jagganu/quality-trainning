@@ -72,7 +72,7 @@ class BenchmarkStage(Stage):
             "diversity": context.diversity_score.model_dump() if context.diversity_score else None,
             "deduplication": context.dedup_report.model_dump() if context.dedup_report else None,
             "verification": verification_report.model_dump(),
-            "cost": context.budget.total_cost,
+            "cost": context.budget.current_cost,
         }
 
         # Persist summary
@@ -82,7 +82,7 @@ class BenchmarkStage(Stage):
 
         logger.info(
             "Benchmark: %d samples, %d accepted (%.0f%%), avg score %.3f, cost $%.4f",
-            total, accepted, pass_rate * 100, avg_score, context.budget.total_cost,
+            total, accepted, pass_rate * 100, avg_score, context.budget.current_cost,
         )
 
         return context

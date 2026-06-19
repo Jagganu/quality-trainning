@@ -51,8 +51,8 @@ class GenerateSettings(BaseSettings):
 class VerifySettings(BaseSettings):
     """Settings for the Verify stage."""
     enabled: bool = True
-    critic_model: str = "gpt-4o-mini"
-    scorer_model: str = "gpt-4o-mini"
+    critic_model: str = ""
+    scorer_model: str = ""
     min_pass_rate: float = 0.6
     min_score: float = 0.7
 

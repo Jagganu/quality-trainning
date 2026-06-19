@@ -60,7 +60,7 @@ class ExportStage(Stage):
             "diversity_score": (
                 context.diversity_score.model_dump() if context.diversity_score else None
             ),
-            "cost_total_usd": context.budget.total_cost,
+            "cost_total_usd": context.budget.current_cost,
         }
         with open(metadata_path, "w", encoding="utf-8") as f:
             json.dump(metadata, f, indent=2, default=str)
