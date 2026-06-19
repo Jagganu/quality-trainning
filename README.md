@@ -37,8 +37,8 @@ Core concepts:
 ## Quick Start
 
 ```bash
-git clone https://github.com/<your-org>/forgegravity.git
-cd forgegravity
+git clone https://github.com/Jagganu/quality-trainning.git
+cd quality-trainning
 py -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -e ".[dev]"
 ```
