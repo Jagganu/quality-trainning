@@ -30,9 +30,6 @@ forge.toml
 output/
 collected_data_*/
 
-# Graphify
-graphify-out/
-
 # Testing
 .coverage
 htmlcov/
