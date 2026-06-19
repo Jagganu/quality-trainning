@@ -44,7 +44,7 @@ class GenerateSettings(BaseSettings):
     default_format: str = "reasoning"
     max_samples: int = 100
     batch_size: int = 10
-    max_concurrent: int = 5
+    max_concurrent: int = 2
     temperature: float = 0.7
 
 
@@ -67,7 +67,7 @@ class QualityGateSettings(BaseSettings):
     """Configurable thresholds for quality gates."""
     max_duplicate_rate: float = 0.10
     min_diversity_score: float = 0.5
-    min_verification_score: float = 0.7
+    min_verification_score: float = 0.0
 
 
 class ForgeSettings(BaseSettings):

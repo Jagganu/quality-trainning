@@ -32,12 +32,14 @@ class VerifyStage(Stage):
 
         # Build critics (format + factual are always used; LLM is optional)
         critics = [FormatCritic(), FactualCritic()]
-        use_llm = bool(settings.critic_model)
+        critic_model = settings.critic_model or context.settings.default_model
+        scorer_model = settings.scorer_model or context.settings.default_model
+        use_llm = bool(critic_model)
         if use_llm:
-            critics.append(LLMCritic(model=settings.critic_model))
+            critics.append(LLMCritic(model=critic_model))
 
         # Build scorer
-        scorer = LLMScorer(model=settings.scorer_model) if use_llm else None
+        scorer = LLMScorer(model=scorer_model) if use_llm else None
 
         # Consensus engine
         consensus = ConsensusEngine(

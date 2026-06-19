@@ -6,6 +6,7 @@ import asyncio
 import json
 import os
 import time
+from pathlib import Path
 from typing import Any
 
 import litellm
@@ -20,6 +21,24 @@ logger = get_logger(__name__)
 
 # Suppress litellm's verbose logging
 litellm.suppress_debug_info = True
+
+
+async def _rate_limited_completion(model: str, messages: list[dict], **kwargs) -> Any:
+    """Call litellm.acompletion with retry on 429 rate limits."""
+    max_retries = 5
+    base_delay = 2.0
+    for attempt in range(max_retries):
+        try:
+            return await litellm.acompletion(model=model, messages=messages, **kwargs)
+        except Exception as e:
+            err_str = str(e)
+            if "429" in err_str or "Too Many Requests" in err_str or "RateLimit" in err_str:
+                if attempt < max_retries - 1:
+                    delay = base_delay * (2 ** attempt)
+                    logger.info("Rate limited, retrying in %.1fs (attempt %d/%d)", delay, attempt + 1, max_retries)
+                    await asyncio.sleep(delay)
+                    continue
+            raise
 
 
 class LLMProvider:
@@ -42,6 +61,19 @@ class LLMProvider:
             if val:
                 os.environ[var] = val
 
+        # Export keys from .env that Pydantic's FORGE_ prefix skips
+        env_path = Path(".env")
+        if env_path.exists():
+            text = env_path.read_text("utf-8-sig")
+            for line in text.splitlines():
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, _, val = line.partition("=")
+                key, val = key.strip(), val.strip().strip("\"'")
+                if key not in os.environ and val:
+                    os.environ[key] = val
+
     def _get_model(self, model: str | None) -> str:
         return model or self._settings.default_model
 
@@ -62,7 +94,7 @@ class LLMProvider:
 
         t0 = time.monotonic()
         try:
-            response = await litellm.acompletion(
+            response = await _rate_limited_completion(
                 model=model_name,
                 messages=messages,
                 temperature=temperature or self._settings.generate.temperature,

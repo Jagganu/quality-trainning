@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from urllib.parse import unquote, urlparse
+from urllib.parse import parse_qs, urlparse
 
 import httpx
 from bs4 import BeautifulSoup
@@ -34,14 +34,15 @@ class SearchEngine:
             soup = BeautifulSoup(resp.text, "html.parser")
             for a_tag in soup.select("a.result__a"):
                 href = a_tag.get("href", "")
-                if href and href.startswith("http"):
+                if not href:
+                    continue
+                if href.startswith("http"):
                     urls.append(href)
-                elif href and "uddg=" in href:
-                    # DuckDuckGo redirect links
-                    for part in href.split("&"):
-                        if part.startswith("uddg="):
-                            urls.append(unquote(part[5:]))
-                            break
+                elif "uddg=" in href:
+                    parsed = urlparse(href)
+                    params = parse_qs(parsed.query)
+                    if "uddg" in params:
+                        urls.append(params["uddg"][0])
                 if len(urls) >= self._max_results:
                     break
 
