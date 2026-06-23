@@ -41,3 +41,31 @@ class ConsensusResult(BaseModel):
     final_verdict: str = "accept"  # accept | reject | revise
     confidence: float = 0.0
     reasoning: str = ""
+    # Populated only by ConsensusEngine.evaluate_with_judges — empty/0.0
+    # for the original single-critic evaluate() path.
+    judge_verdicts: list[JudgeVerdict] = Field(default_factory=list)
+    agreement_ratio: float = 0.0
+
+
+class JudgeVerdict(BaseModel):
+    """One independent judge model's opinion on a single (already-selected)
+    candidate sample.
+
+    Used by :class:`~forge.verification.judge_ensemble.JudgeEnsemble` to
+    collect opinions from 2+ different model families before merging them
+    into a single :class:`ConsensusResult`. Distinct from :class:`Critique`
+    in that a verdict always carries an explicit accept/reject/revise call
+    plus which reasoning steps (if any) the judge flagged as broken,
+    rather than a free-form issue list.
+    """
+
+    sample_id: str
+    judge_model: str
+    verdict: str = "accept"  # accept | reject | revise
+    severity: str = "none"  # none | minor | major | fatal
+    step_failures: list[int] = Field(default_factory=list)
+    confidence: float = 0.0
+    reasoning: str = ""
+
+
+ConsensusResult.model_rebuild()

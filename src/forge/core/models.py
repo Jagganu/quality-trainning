@@ -13,7 +13,6 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
-
 # ---------------------------------------------------------------------------
 # Enums
 # ---------------------------------------------------------------------------
@@ -153,6 +152,44 @@ class RawGeneration(BaseModel):
     tokens_out: int = 0
     cost: float = 0.0
     latency_ms: float = 0.0
+
+
+# ---------------------------------------------------------------------------
+# Self-consistency generation
+# ---------------------------------------------------------------------------
+
+class CandidateGeneration(BaseModel):
+    """One of N sampled reasoning chains for the same prompt.
+
+    Produced by :class:`~forge.stages.generate.self_consistency.
+    SelfConsistencyGenerator` before a winner is selected. ``answer_signature``
+    is a normalised representation of the candidate's final answer used for
+    clustering; ``programmatic_pass`` holds the result of executing/checking
+    the candidate against ground truth where that's possible (code tests,
+    symbolic math), bypassing the need for an LLM judge entirely.
+    """
+    candidate_id: str = Field(default_factory=lambda: str(uuid4()))
+    raw: RawGeneration = Field(default_factory=RawGeneration)
+    content: dict[str, Any] = Field(default_factory=dict)
+    answer_signature: str = ""
+    cluster_id: int = -1
+    programmatic_pass: bool | None = None
+
+
+class CandidateSet(BaseModel):
+    """All sampled candidates for one generation prompt, plus the outcome
+    of clustering and selection.
+
+    ``selected_id`` is empty when no cluster reached agreement (the
+    generation should be marked for revision rather than guessing).
+    ``rejected_ids`` holds runner-up candidates suitable as DPO "rejected"
+    members paired against the ``selected_id`` "chosen" member.
+    """
+    prompt_id: str = Field(default_factory=lambda: str(uuid4()))
+    candidates: list[CandidateGeneration] = Field(default_factory=list)
+    selected_id: str = ""
+    rejected_ids: list[str] = Field(default_factory=list)
+    agreement_ratio: float = 0.0  # size of winning cluster / total candidates
 
 
 # ---------------------------------------------------------------------------

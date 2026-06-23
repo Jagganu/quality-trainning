@@ -47,6 +47,14 @@ class GenerateSettings(BaseSettings):
     max_concurrent: int = 2
     temperature: float = 0.7
 
+    # Self-consistency: sample N candidates per prompt instead of 1.
+    # n=1 (default) preserves the original single-shot behaviour.
+    self_consistency_n: int = 1
+    # Optional list of models to rotate across candidates for diversity
+    # (e.g. ["deepseek/deepseek-chat", "qwen/qwen-2.5-coder"]). Empty =
+    # all candidates use default_model at varying temperature only.
+    self_consistency_models: list[str] = Field(default_factory=list)
+
 
 class VerifySettings(BaseSettings):
     """Settings for the Verify stage."""
@@ -55,6 +63,23 @@ class VerifySettings(BaseSettings):
     scorer_model: str = ""
     min_pass_rate: float = 0.6
     min_score: float = 0.7
+
+    # Judge ensemble: 2+ different models independently verdict the same
+    # sample; final confidence = min() across judges, fatal from any judge
+    # rejects regardless of others. Empty list = fall back to the single
+    # critic_model/scorer_model path above (original behaviour).
+    judge_models: list[str] = Field(default_factory=list)
+    # Run cheap programmatic ground-truth checks (code exec, symbolic math)
+    # before spending any judge calls.
+    programmatic_check: bool = True
+
+
+class RefineSettings(BaseSettings):
+    """Settings for the Refine stage."""
+    # Refined samples are re-verified rather than auto-accepted; this caps
+    # how many refine->verify round trips a single sample can take before
+    # it's left in its last known verdict.
+    max_retries: int = 2
 
 
 class BudgetSettings(BaseSettings):
@@ -104,6 +129,7 @@ class ForgeSettings(BaseSettings):
     clean: CleanSettings = Field(default_factory=CleanSettings)
     generate: GenerateSettings = Field(default_factory=GenerateSettings)
     verify: VerifySettings = Field(default_factory=VerifySettings)
+    refine: RefineSettings = Field(default_factory=RefineSettings)
     budget: BudgetSettings = Field(default_factory=BudgetSettings)
     quality_gates: QualityGateSettings = Field(default_factory=QualityGateSettings)
 
@@ -124,7 +150,8 @@ def load_settings(config_path: str | Path | None = None) -> ForgeSettings:
             toml_data = tomllib.load(f)
 
         # Flatten TOML sections into overrides
-        for section in ("collect", "clean", "generate", "verify", "budget", "quality_gates"):
+        sections = ("collect", "clean", "generate", "verify", "refine", "budget", "quality_gates")
+        for section in sections:
             if section in toml_data:
                 overrides[section] = toml_data[section]
 

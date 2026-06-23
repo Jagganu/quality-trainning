@@ -7,6 +7,7 @@ from forge.stages.generate.formats.base import DatasetFormat
 from forge.stages.generate.formats.chat import ChatFormat
 from forge.stages.generate.formats.coding import CodingFormat
 from forge.stages.generate.formats.instruction import InstructionFormat
+from forge.stages.generate.formats.principles import PrinciplesFormat
 from forge.stages.generate.formats.reasoning import ReasoningFormat
 
 FORMAT_REGISTRY: dict[str, type[DatasetFormat]] = {
@@ -15,6 +16,7 @@ FORMAT_REGISTRY: dict[str, type[DatasetFormat]] = {
     "agent": AgentFormat,
     "coding": CodingFormat,
     "chat": ChatFormat,
+    "principles": PrinciplesFormat,
 }
 
 __all__ = [

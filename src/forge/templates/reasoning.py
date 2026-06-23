@@ -18,7 +18,7 @@ class ReasoningTemplate(Template):
 
     @property
     def default_format(self) -> str:
-        return "reasoning"
+        return "principles"
 
     def seed_topics(self) -> list[str]:
         return [
@@ -38,13 +38,14 @@ class ReasoningTemplate(Template):
 
     def generation_guidelines(self) -> str:
         return (
-            "Generate training samples that develop strong reasoning skills.\n"
-            "- Questions should require genuine multi-step reasoning\n"
-            "- Include problems from diverse domains (math, logic, science, ethics)\n"
-            "- The analysis field must show clear, step-by-step reasoning\n"
-            "- Avoid trivial factoid questions — focus on understanding and application\n"
-            "- Include edge cases and counterexamples where relevant\n"
-            "- Vary problem structures: deductive, inductive, abductive reasoning\n"
+            "Generate training samples that teach REASONING PRINCIPLES and the 'WHY' behind them.\n"
+            "- Each sample must identify the FUNDAMENTAL REASONING PRINCIPLE (e.g., Occam's razor, Bayesian updating, reductio ad absurdum, first principles thinking, falsifiability, modular decomposition)\n"
+            "- Explain WHY the principle works: the mathematical/epistemological foundation\n"
+            "- Show MISAPPLICATION: common cognitive biases or logical fallacies when the principle is violated\n"
+            "- Demonstrate CORRECT APPLICATION: step-by-step use of the principle to solve the problem\n"
+            "- Define BOUNDARY CONDITIONS: when the principle breaks down or needs adaptation\n"
+            "- Use diverse domains (math, logic, science, ethics, systems) to show principle transferability\n"
+            "- Focus on DEEP UNDERSTANDING of the reasoning process, not just getting the right answer\n"
         )
 
     def estimated_page_count(self) -> int:

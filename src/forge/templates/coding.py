@@ -18,7 +18,7 @@ class CodingTemplate(Template):
 
     @property
     def default_format(self) -> str:
-        return "coding"
+        return "principles"
 
     def seed_topics(self) -> list[str]:
         return [
@@ -40,14 +40,14 @@ class CodingTemplate(Template):
 
     def generation_guidelines(self) -> str:
         return (
-            "Generate training samples that develop software engineering skills.\n"
-            "- Present realistic coding problems, not toy examples\n"
-            "- Include actual code snippets in relevant languages (Python, JS, Go, Rust)\n"
-            "- The investigation field should show systematic debugging approach\n"
-            "- Patches should be minimal, correct, and well-explained\n"
-            "- Verification should include test cases and edge cases\n"
-            "- Cover the full spectrum: from algorithms to system design to debugging\n"
-            "- Include performance considerations and Big-O analysis where relevant\n"
+            "Generate training samples that teach SOFTWARE ENGINEERING PRINCIPLES and the 'WHY' behind them.\n"
+            "- Each sample must identify the FUNDAMENTAL ENGINEERING PRINCIPLE (e.g., SOLID, DRY, KISS, YAGNI, separation of concerns, single responsibility, loose coupling, high cohesion, fail fast, design for failure)\n"
+            "- Explain WHY the principle exists: the underlying complexity or failure mode it prevents\n"
+            "- Show VIOLATION: real-world technical debt, bugs, or scaling failures from ignoring the principle\n"
+            "- Demonstrate CORRECT APPLICATION: clean code, architecture, or design pattern embodying the principle\n"
+            "- Define BOUNDARY CONDITIONS: when pragmatic trade-offs justify bending the principle (with mitigations)\n"
+            "- Cover algorithms, system design, debugging, and code review through a principles lens\n"
+            "- Focus on TRANSFERABLE ENGINEERING JUDGMENT, not syntax memorization\n"
         )
 
     def estimated_page_count(self) -> int:

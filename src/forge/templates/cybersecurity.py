@@ -18,7 +18,7 @@ class CybersecurityTemplate(Template):
 
     @property
     def default_format(self) -> str:
-        return "reasoning"
+        return "principles"
 
     def seed_topics(self) -> list[str]:
         return [
@@ -43,14 +43,15 @@ class CybersecurityTemplate(Template):
 
     def generation_guidelines(self) -> str:
         return (
-            "Generate training samples that teach cybersecurity concepts accurately.\n"
-            "- Include realistic but SAFE examples (no actual exploit code for active systems)\n"
-            "- Cover both offensive (red team) and defensive (blue team) perspectives\n"
-            "- Reference real CVEs where relevant, but focus on understanding the concepts\n"
-            "- Include difficulty levels from beginner (basic concepts) to advanced (novel attacks)\n"
-            "- Questions should require multi-step reasoning, not simple recall\n"
-            "- Analysis should explain the 'why' behind each vulnerability, not just the 'how'\n"
-            "- Answers should include mitigation strategies and secure alternatives\n"
+            "Generate training samples that teach cybersecurity PRINCIPLES and the 'WHY' behind them.\n"
+            "- Each sample must identify the FUNDAMENTAL SECURITY PRINCIPLE (e.g., least privilege, defense in depth, fail-safe defaults, zero trust)\n"
+            "- Explain WHY the principle exists: the underlying threat model and attack surface it addresses\n"
+            "- Show the VIOLATION: how ignoring the principle leads to specific vulnerability classes\n"
+            "- Demonstrate the CORRECT APPLICATION: secure patterns that embody the principle\n"
+            "- Define BOUNDARY CONDITIONS: when the principle might be relaxed and the compensating controls needed\n"
+            "- Use real CVEs as case studies of principle violations, not just exploit demonstrations\n"
+            "- Include difficulty levels from beginner (recognizing the principle) to advanced (novel principle compositions)\n"
+            "- Focus on TRANSFERABLE UNDERSTANDING, not memorizing specific exploits\n"
         )
 
     def estimated_page_count(self) -> int:

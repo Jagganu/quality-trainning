@@ -44,6 +44,17 @@ SCHEMAS: dict[str, dict[str, Any]] = {
             "conversations": {"type": "array"},
         },
     },
+    "principles": {
+        "required": ["scenario", "core_principles", "why_rationale", "solution", "boundary_conditions", "metadata"],
+        "properties": {
+            "scenario": {"type": "string"},
+            "core_principles": {"type": "array", "items": {"type": "string"}},
+            "why_rationale": {"type": "string"},
+            "solution": {"type": "string"},
+            "boundary_conditions": {"type": "string"},
+            "metadata": {"type": "object"},
+        },
+    },
 }
 
 

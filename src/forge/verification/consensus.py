@@ -9,7 +9,7 @@ The :class:`ConsensusEngine` combines critiques from multiple
 from __future__ import annotations
 
 from forge.utils.logging import get_logger
-from forge.verification.models import ConsensusResult, Critique, ScoreResult
+from forge.verification.models import ConsensusResult, Critique, JudgeVerdict, ScoreResult
 
 logger = get_logger(__name__)
 
@@ -106,4 +106,75 @@ class ConsensusEngine:
             final_verdict=verdict,
             confidence=confidence,
             reasoning=reasoning,
+        )
+
+    def evaluate_with_judges(
+        self,
+        sample_id: str,
+        critiques: list[Critique],
+        judge_verdicts: list[JudgeVerdict],
+        agreement_ratio: float = 1.0,
+        min_agreement: float = 0.34,
+    ) -> ConsensusResult:
+        """Merge cheap critics (format/factual — no LLM cost), an already
+        cheap-checked self-consistency ``agreement_ratio`` from the
+        Generate stage, and judge-ensemble verdicts into one final result.
+
+        Decision logic
+        --------------
+        1. Any fatal critique, or the judge ensemble's merged verdict is
+           ``reject`` → ``reject``.
+        2. Judge ensemble says ``accept`` AND agreement_ratio ≥
+           *min_agreement* AND critique pass_rate ≥ ``self.min_pass_rate``
+           → ``accept``. Pass rate is a ratio, not "every critique must
+           pass" — consistent with the original evaluate() semantics, so
+           a single minor critique (e.g. a heuristic factual-overlap flag)
+           doesn't unconditionally veto an otherwise-good sample.
+        3. Otherwise → ``revise``. Low self-consistency alone (candidates
+           disagreed) is a soft signal, not an automatic reject — a strong
+           judge ensemble can still override it, but it pulls confidence
+           down via the same min-across-signals rule judges use internally.
+        """
+        has_fatal_critique = any(c.severity == "fatal" for c in critiques)
+        pass_rate = (
+            sum(1 for c in critiques if c.passed) / len(critiques) if critiques else 1.0
+        )
+        critiques_passed = pass_rate >= self.min_pass_rate
+
+        if not judge_verdicts:
+            judge_verdict, judge_confidence = "revise", 0.0
+        else:
+            from forge.verification.judge_ensemble import merge_judge_verdicts
+            judge_verdict, judge_confidence = merge_judge_verdicts(judge_verdicts)
+
+        confidence = round(min(judge_confidence, agreement_ratio), 4)
+
+        if has_fatal_critique or judge_verdict == "reject":
+            verdict = "reject"
+            reasoning = "Fatal critique or judge-ensemble reject"
+        elif (
+            judge_verdict == "accept"
+            and agreement_ratio >= min_agreement
+            and critiques_passed
+        ):
+            verdict = "accept"
+            reasoning = (
+                f"Judges accepted, agreement {agreement_ratio:.0%} ≥ "
+                f"{min_agreement:.0%}, critics passed"
+            )
+        else:
+            verdict = "revise"
+            reasoning = (
+                f"judge_verdict={judge_verdict}, agreement={agreement_ratio:.0%}, "
+                f"critics_passed={critiques_passed}"
+            )
+
+        return ConsensusResult(
+            sample_id=sample_id,
+            critiques=list(critiques),
+            final_verdict=verdict,
+            confidence=confidence,
+            reasoning=reasoning,
+            judge_verdicts=list(judge_verdicts),
+            agreement_ratio=agreement_ratio,
         )
