@@ -23,6 +23,15 @@ Collect -> Clean -> Analyze -> Generate -> Verify -> Refine
                                       \-> Benchmark -> Export
 ```
 
+### Quality Enhancements (v0.2)
+
+| Feature | Stage | Description |
+|---------|-------|-------------|
+| **Self-Consistency** | Generate | Sample N candidates per prompt, cluster by answer signature, promote only majority-agreement winners. Programmatic checks (code exec, math) run before clustering. |
+| **Judge Ensemble** | Verify | 2+ independent judge models must agree; confidence = min across judges; any fatal verdict = reject. Falls back to single critic/scorer if `judge_models` empty. |
+| **Refine Re-verification** | Refine | Refined samples re-run through full Verify (critics + consensus); capped at `max_retries`; failures stay in `revise` (no auto-accept). |
+| **Principles Format** | Generate | New `principles` dataset format teaching engineering/security/reasoning principles with scenario, core principles, why rationale, solution, boundary conditions. |
+
 Core concepts:
 
 | Concept | Description |
@@ -85,7 +94,7 @@ Common flags:
 ```text
 --config, -c PATH    Path to forge.toml config file
 --output, -o PATH    Output directory (default: ./output)
---format, -f TEXT    Dataset format: reasoning, instruction, agent, coding, chat
+--format, -f TEXT    Dataset format: principles, reasoning, instruction, agent, coding, chat
 --model,  -m TEXT    LLM model identifier supported by LiteLLM
 --max-samples INT    Cap total generated samples
 --max-cost FLOAT     Hard budget limit in USD
@@ -115,15 +124,24 @@ max_documents = 20
 requests_per_second = 2.0
 
 [generate]
-default_format = "reasoning"
+default_format = "principles"
 max_samples = 100
 batch_size = 10
 temperature = 0.7
+self_consistency_n = 3
+# self_consistency_models = ["deepseek/deepseek-chat", "qwen/qwen-2.5-coder"]
 
 [verify]
 enabled = true
 critic_model = "gpt-4o-mini"
+scorer_model = "gpt-4o-mini"
+min_pass_rate = 0.6
 min_score = 0.7
+# judge_models = ["judge-model-a", "judge-model-b"]  # 2+ enables ensemble
+programmatic_check = true
+
+[refine]
+max_retries = 2
 
 [budget]
 max_cost_usd = 5.0
@@ -139,14 +157,15 @@ min_verification_score = 0.7
 
 | Template | Format | Estimated Samples | Description |
 |----------|--------|-------------------|-------------|
-| `cybersecurity` | reasoning | 200 | Vulnerabilities, CTF, secure coding, and incident response. |
-| `reasoning` | reasoning | 100 | Logic, probability, critical thinking, and scientific method. |
-| `coding` | coding | 150 | Algorithms, debugging, design patterns, and code review. |
+| `cybersecurity` | principles | 200 | Vulnerabilities, CTF, secure coding, incident response — principle-driven. |
+| `reasoning` | principles | 100 | Logic, probability, critical thinking, scientific method — principle-driven. |
+| `coding` | principles | 150 | Algorithms, debugging, design patterns, code review — principle-driven. |
 
 ## Dataset Formats
 
 | Format | Required Fields | Use Case |
 |--------|-----------------|----------|
+| `principles` | `scenario`, `core_principles`, `why_rationale`, `solution`, `boundary_conditions`, `metadata` | Principle-driven training (engineering, security, reasoning). |
 | `reasoning` | `question`, `analysis`, `answer`, `metadata` | Reasoning fine-tuning records. |
 | `instruction` | `messages` | ChatML-style instruction data. |
 | `agent` | `observation`, `thought`, `action`, `result` | ReAct-style agent traces. |
@@ -168,7 +187,19 @@ src/forge/
   cli/             Typer CLI and Rich display helpers
   core/            Pipeline engine, settings, models, hooks, gates, budget
   stages/          Collect, clean, analyze, generate, verify, refine, benchmark, export
-  verification/    Critics, scorers, validators, and consensus
+    generate/
+      self_consistency.py     # N-candidate sampling, clustering, programmatic checks
+    verify/
+      judge_ensemble.py       # Multi-model judge ensemble with min-confidence merge
+    refine/
+      refiner.py              # Refine with re-verification (fixed auto-accept bug)
+  verification/
+    critics.py                # FormatCritic, FactualCritic, LLMCritic
+    scorers.py                # LLMScorer
+    consensus.py              # ConsensusEngine (single + judge-ensemble paths)
+    judge_ensemble.py         # JudgeEnsemble, merge_judge_verdicts
+    programmatic.py           # CodeChecker, MathChecker (free ground-truth checks)
+    models.py                 # Critique, ScoreResult, ConsensusResult, JudgeVerdict
   datasets/        Schemas, validators, loaders, and exporters
   trajectories/    Agent trajectory recording and formatting
   templates/       Domain-specific dataset blueprints
@@ -177,7 +208,12 @@ src/forge/
   storage/         Filesystem and SQLite backends
   registry/        Plugin registries
   utils/           Logging, cost, and hashing helpers
-tests/             Unit tests for core, datasets, and verification
+tests/
+  core/test_pipeline_integration.py    # Full stage wiring tests
+  stages/generate/test_self_consistency.py
+  verification/test_judge_ensemble.py
+  verification/test_programmatic.py
+  verification/test_consensus_judges.py
 ```
 
 ## License
