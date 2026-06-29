@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import litellm
+from litellm.exceptions import RateLimitError
 from pydantic import BaseModel
 
 from forge.core.budget import CostBudget
@@ -22,6 +23,21 @@ logger = get_logger(__name__)
 # Suppress litellm's verbose logging
 litellm.suppress_debug_info = True
 
+# Keys that LiteLLM reads from the environment — only these are exported
+# from .env so we don't leak unrelated secrets into the process environment.
+_LITELLM_KEY_NAMES = frozenset({
+    "OPENAI_API_KEY",
+    "ANTHROPIC_API_KEY",
+    "GEMINI_API_KEY",
+    "OPENROUTER_API_KEY",
+    "COHERE_API_KEY",
+    "MISTRAL_API_KEY",
+    "AZURE_API_KEY",
+    "AZURE_API_BASE",
+    "AZURE_API_VERSION",
+    "OLLAMA_API_BASE",
+})
+
 
 async def _rate_limited_completion(model: str, messages: list[dict], **kwargs) -> Any:
     """Call litellm.acompletion with retry on 429 rate limits."""
@@ -30,15 +46,18 @@ async def _rate_limited_completion(model: str, messages: list[dict], **kwargs) -
     for attempt in range(max_retries):
         try:
             return await litellm.acompletion(model=model, messages=messages, **kwargs)
-        except Exception as e:
-            err_str = str(e)
-            if "429" in err_str or "Too Many Requests" in err_str or "RateLimit" in err_str:
-                if attempt < max_retries - 1:
-                    delay = base_delay * (2 ** attempt)
-                    logger.info("Rate limited, retrying in %.1fs (attempt %d/%d)", delay, attempt + 1, max_retries)
-                    await asyncio.sleep(delay)
-                    continue
-            raise
+        except RateLimitError:
+            # Catch LiteLLM's typed exception instead of substring-matching
+            # error strings, which is fragile and can misfire.
+            if attempt < max_retries - 1:
+                delay = base_delay * (2 ** attempt)
+                logger.info(
+                    "Rate limited, retrying in %.1fs (attempt %d/%d)",
+                    delay, attempt + 1, max_retries,
+                )
+                await asyncio.sleep(delay)
+            else:
+                raise
 
 
 class LLMProvider:
@@ -50,18 +69,26 @@ class LLMProvider:
         self._setup_keys()
 
     def _setup_keys(self) -> None:
-        """Push API keys from settings into env vars for LiteLLM."""
-        mapping = {
+        """Push API keys from settings into env vars for LiteLLM.
+
+        Only exports keys that LiteLLM actually reads (``_LITELLM_KEY_NAMES``).
+        The previous implementation re-parsed the entire .env file and exported
+        every key it found, which leaked unrelated secrets (DB passwords, tokens,
+        etc.) into the process environment where subprocesses could read them.
+        """
+        # 1. Keys explicitly configured via ForgeSettings take priority.
+        explicit: dict[str, str] = {
             "OPENAI_API_KEY": self._settings.openai_api_key,
             "ANTHROPIC_API_KEY": self._settings.anthropic_api_key,
             "GEMINI_API_KEY": self._settings.gemini_api_key,
             "OPENROUTER_API_KEY": self._settings.openrouter_api_key,
         }
-        for var, val in mapping.items():
+        for var, val in explicit.items():
             if val:
                 os.environ[var] = val
 
-        # Export keys from .env that Pydantic's FORGE_ prefix skips
+        # 2. For any remaining LiteLLM keys not yet in the environment, read
+        #    them from .env — but ONLY the keys in _LITELLM_KEY_NAMES.
         env_path = Path(".env")
         if env_path.exists():
             text = env_path.read_text("utf-8-sig")
@@ -70,8 +97,11 @@ class LLMProvider:
                 if not line or line.startswith("#") or "=" not in line:
                     continue
                 key, _, val = line.partition("=")
-                key, val = key.strip(), val.strip().strip("\"'")
-                if key not in os.environ and val:
+                key = key.strip()
+                val = val.strip().strip("\"'")
+                # Only export if: it's a known LiteLLM key, not already set,
+                # and has a non-empty value.
+                if key in _LITELLM_KEY_NAMES and key not in os.environ and val:
                     os.environ[key] = val
 
     def _get_model(self, model: str | None) -> str:

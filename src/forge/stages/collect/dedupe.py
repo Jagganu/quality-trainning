@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from forge.core.models import DeduplicationReport, DuplicateResult
-from forge.utils.hashing import hamming_distance, md5_hash, simhash
+from forge.utils.hashing import hamming_distance, sha256_hash, simhash
 from forge.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -21,7 +21,7 @@ class DeduplicationEngine:
     def add_document(self, doc_id: str, content: str) -> DuplicateResult:
         """Check for duplicates and register the document."""
         self._report.total_processed += 1
-        content_hash = md5_hash(content)
+        content_hash = sha256_hash(content)
 
         # Exact duplicate?
         if content_hash in self._exact_hashes:
@@ -49,7 +49,7 @@ class DeduplicationEngine:
         return DuplicateResult(is_duplicate=False)
 
     def check_exact(self, content: str) -> bool:
-        return md5_hash(content) in self._exact_hashes
+        return sha256_hash(content) in self._exact_hashes
 
     def check_simhash(self, content: str, threshold: int | None = None) -> list[str]:
         """Return IDs of near-duplicates."""

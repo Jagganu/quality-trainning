@@ -6,12 +6,21 @@ including data lineage, quality metrics, and the v3 reasoning format.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
+
+
+def _utcnow() -> datetime:
+    """Return the current UTC time as a timezone-aware datetime.
+
+    Replaces ``datetime.utcnow()`` which is deprecated in Python 3.12+
+    and returns a naive datetime, leading to subtle comparison bugs.
+    """
+    return datetime.now(tz=timezone.utc)
 
 
 # ---------------------------------------------------------------------------
@@ -51,7 +60,7 @@ class Document(BaseModel):
     content: str = ""
     content_type: str = "text/html"
     metadata: dict[str, Any] = Field(default_factory=dict)
-    collected_at: datetime = Field(default_factory=datetime.utcnow)
+    collected_at: datetime = Field(default_factory=_utcnow)
     content_hash: str = ""
     word_count: int = 0
 
@@ -98,7 +107,7 @@ class SampleLineage(BaseModel):
     sample_id: str = Field(default_factory=lambda: str(uuid4()))
     source_documents: list[str] = Field(default_factory=list)
     generation_model: str = ""
-    generation_timestamp: datetime = Field(default_factory=datetime.utcnow)
+    generation_timestamp: datetime = Field(default_factory=_utcnow)
     template: str = ""
     pipeline_run_id: str = ""
     format: str = ""
@@ -217,7 +226,7 @@ class RunMetadata(BaseModel):
     """Metadata for a pipeline run."""
     run_id: str = Field(default_factory=lambda: str(uuid4()))
     topic: str = ""
-    started_at: datetime = Field(default_factory=datetime.utcnow)
+    started_at: datetime = Field(default_factory=_utcnow)
     completed_at: datetime | None = None
     status: RunStatus = RunStatus.PENDING
     stages_completed: list[str] = Field(default_factory=list)

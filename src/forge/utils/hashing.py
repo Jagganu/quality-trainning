@@ -1,4 +1,4 @@
-"""Content hashing for deduplication — MD5 exact match and SimHash near-duplicate."""
+"""Content hashing for deduplication — SHA-256 exact match and SimHash near-duplicate."""
 
 from __future__ import annotations
 
@@ -7,8 +7,30 @@ import re
 from collections.abc import Iterable
 
 
-def md5_hash(content: str) -> str:
-    """Return MD5 hex digest of content (for exact duplicate detection)."""
+def sha256_hash(content: str) -> str:
+    """Return SHA-256 hex digest of content (for exact duplicate detection).
+
+    SHA-256 replaces the previous MD5-based ``md5_hash``.  MD5 has known
+    collision vulnerabilities — while extremely unlikely in practice for
+    plain text, SHA-256 has no known collisions and costs negligibly more.
+    """
+    return hashlib.sha256(content.encode("utf-8")).hexdigest()
+
+
+# ---------------------------------------------------------------------------
+# Legacy alias — kept so existing stored hashes and any external callers
+# that imported md5_hash directly still work.  New code should use sha256_hash.
+# ---------------------------------------------------------------------------
+
+def md5_hash(content: str) -> str:  # noqa: N802
+    """Deprecated: use ``sha256_hash`` instead."""
+    import warnings
+    warnings.warn(
+        "md5_hash is deprecated and will be removed in a future release. "
+        "Use sha256_hash instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     return hashlib.md5(content.encode("utf-8")).hexdigest()
 
 

@@ -16,6 +16,7 @@ import asyncio
 import json
 
 from forge.core.models import Sample
+from forge.providers.llm import LLMProvider
 from forge.utils.logging import get_logger
 from forge.verification.models import JudgeVerdict
 
@@ -57,13 +58,16 @@ class JudgeEnsemble:
     their verdicts under a strict agreement rule.
     """
 
-    def __init__(self, models: list[str]) -> None:
+    def __init__(self, models: list[str], llm: LLMProvider) -> None:
         if len(models) < 2:
             raise ValueError(
                 "JudgeEnsemble requires at least 2 models — use a single "
                 "LLMCritic instead if you only have one judge model."
             )
         self.models = models
+        # All judge calls route through LLMProvider so costs are tracked in
+        # CostBudget and visible in cost reports / dry-run estimates.
+        self._llm = llm
 
     async def evaluate(self, sample: Sample) -> tuple[list[JudgeVerdict], str, float]:
         """Return (per-judge verdicts, merged final_verdict, merged confidence)."""
@@ -74,24 +78,23 @@ class JudgeEnsemble:
         return list(verdicts), verdict, confidence
 
     async def _judge(self, sample: Sample, model: str) -> JudgeVerdict:
-        import litellm
-
         sample_id = sample.lineage.sample_id
         sample_text = json.dumps(sample.content, indent=2, default=str)
         prompt = _JUDGE_PROMPT.format(sample_text=sample_text)
 
         try:
-            response = await litellm.acompletion(
+            # Route through LLMProvider so token usage and cost are recorded
+            # in CostBudget — direct litellm calls bypassed budget tracking.
+            raw = await self._llm.complete(
+                prompt=prompt,
                 model=model,
-                messages=[{"role": "user", "content": prompt}],
                 temperature=0.0,
-                max_tokens=512,
+                stage="verify",
             )
-            raw = response.choices[0].message.content or "{}"
-            raw = raw.strip()
-            if raw.startswith("```"):
-                raw = raw.split("\n", 1)[1].rsplit("```", 1)[0]
-            data = json.loads(raw)
+            text = raw.text.strip()
+            if text.startswith("```"):
+                text = text.split("\n", 1)[1].rsplit("```", 1)[0]
+            data = json.loads(text)
             return JudgeVerdict(
                 sample_id=sample_id,
                 judge_model=model,

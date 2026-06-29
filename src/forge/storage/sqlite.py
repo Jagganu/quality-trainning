@@ -71,12 +71,12 @@ class SQLiteStorage(StorageBackend):
             await db.commit()
 
     async def save_state(self, run_id: str, state: dict[str, Any]) -> None:
-        from datetime import datetime
+        from datetime import datetime, timezone
         async with aiosqlite.connect(self._db_path) as db:
             await self._ensure_tables(db)
             await db.execute(
                 "INSERT OR REPLACE INTO pipeline_state (run_id, state, updated_at) VALUES (?, ?, ?)",
-                (run_id, json.dumps(state, default=str), datetime.utcnow().isoformat()),
+                (run_id, json.dumps(state, default=str), datetime.now(tz=timezone.utc).isoformat()),
             )
             await db.commit()
 

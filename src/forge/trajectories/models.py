@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
@@ -24,7 +24,7 @@ class TrajectoryStep(BaseModel):
     thought: str
     action: Action
     result: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))
 
 
 class Trajectory(BaseModel):
@@ -35,4 +35,4 @@ class Trajectory(BaseModel):
     task: str
     outcome: str = ""  # "success" | "failure" | "partial"
     metadata: dict[str, Any] = Field(default_factory=dict)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(tz=timezone.utc))

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 from forge.core.context import PipelineContext
 from forge.core.models import SampleVerdict, VerificationReport
@@ -63,7 +63,7 @@ class BenchmarkStage(Stage):
         summary = {
             "run_id": context.run_id,
             "topic": context.topic,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(tz=timezone.utc).isoformat(),
             "total_samples": total,
             "accepted": accepted,
             "rejected": rejected,

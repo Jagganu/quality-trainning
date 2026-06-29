@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -148,7 +148,7 @@ class Pipeline:
             raise QualityGateFailedError(failed)
 
         context.run_metadata.status = RunStatus.COMPLETED
-        context.run_metadata.completed_at = datetime.utcnow()
+        context.run_metadata.completed_at = datetime.now(tz=timezone.utc)
         await self._hooks.emit(HookEvent.PIPELINE_END, context=context)
 
         return PipelineResult(

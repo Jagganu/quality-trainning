@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import random
-from datetime import datetime
+from datetime import datetime, timezone
 
 from forge.core.context import PipelineContext
 from forge.core.models import Sample, SampleLineage
@@ -207,7 +207,7 @@ class GenerateStage(Stage):
             lineage=SampleLineage(
                 source_documents=list(source_ids),
                 generation_model=model,
-                generation_timestamp=datetime.utcnow(),
+                generation_timestamp=datetime.now(tz=timezone.utc),
                 template=context.template_name,
                 pipeline_run_id=context.run_id,
                 format=fmt.name,

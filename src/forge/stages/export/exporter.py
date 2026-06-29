@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from forge.core.context import PipelineContext
@@ -56,7 +56,7 @@ class ExportStage(Stage):
             "total_generated": len(context.samples),
             "total_exported": len(accepted),
             "rejected": len(context.samples) - len(accepted),
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(tz=timezone.utc).isoformat(),
             "diversity_score": (
                 context.diversity_score.model_dump() if context.diversity_score else None
             ),
