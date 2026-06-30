@@ -6,7 +6,6 @@ import asyncio
 import json
 import os
 import time
-from pathlib import Path
 from typing import Any
 
 import litellm
@@ -50,29 +49,22 @@ class LLMProvider:
         self._setup_keys()
 
     def _setup_keys(self) -> None:
-        """Push API keys from settings into env vars for LiteLLM."""
+        """Push API keys from settings into env vars for LiteLLM.
+
+        Keys are read from ForgeSettings (which Pydantic-settings already
+        populated from env vars and the .env file).  No manual .env parsing
+        is performed here — doing so would inject arbitrary keys into
+        os.environ and bypass the FORGE_ prefix guard.
+        """
         mapping = {
-            "OPENAI_API_KEY": self._settings.openai_api_key,
-            "ANTHROPIC_API_KEY": self._settings.anthropic_api_key,
-            "GEMINI_API_KEY": self._settings.gemini_api_key,
-            "OPENROUTER_API_KEY": self._settings.openrouter_api_key,
+            "OPENAI_API_KEY": self._settings.openai_api_key.get_secret_value(),
+            "ANTHROPIC_API_KEY": self._settings.anthropic_api_key.get_secret_value(),
+            "GEMINI_API_KEY": self._settings.gemini_api_key.get_secret_value(),
+            "OPENROUTER_API_KEY": self._settings.openrouter_api_key.get_secret_value(),
         }
         for var, val in mapping.items():
             if val:
                 os.environ[var] = val
-
-        # Export keys from .env that Pydantic's FORGE_ prefix skips
-        env_path = Path(".env")
-        if env_path.exists():
-            text = env_path.read_text("utf-8-sig")
-            for line in text.splitlines():
-                line = line.strip()
-                if not line or line.startswith("#") or "=" not in line:
-                    continue
-                key, _, val = line.partition("=")
-                key, val = key.strip(), val.strip().strip("\"'")
-                if key not in os.environ and val:
-                    os.environ[key] = val
 
     def _get_model(self, model: str | None) -> str:
         return model or self._settings.default_model
@@ -97,7 +89,10 @@ class LLMProvider:
             response = await _rate_limited_completion(
                 model=model_name,
                 messages=messages,
-                temperature=temperature or self._settings.generate.temperature,
+                # Use `is not None` so that temperature=0.0 (deterministic
+                # generation) is respected rather than falling back to the
+                # settings default (0.0 is falsy with `or`).
+                temperature=temperature if temperature is not None else self._settings.generate.temperature,
             )
         except Exception as e:
             logger.error("LLM call failed (%s): %s", model_name, e)
@@ -132,18 +127,37 @@ class LLMProvider:
         schema: type[BaseModel],
         system: str = "",
         model: str | None = None,
+        max_retries: int = 2,
     ) -> BaseModel:
-        """Call LLM and parse response as JSON into a Pydantic model."""
+        """Call LLM and parse response as JSON into a Pydantic model.
+
+        Retries up to ``max_retries`` times when the LLM returns malformed
+        JSON or a response that doesn't match the schema.  Raises
+        ``ValueError`` after all attempts are exhausted so callers can
+        handle the failure rather than receiving an unexpected exception.
+        """
         json_instruction = (
             f"\n\nRespond ONLY with valid JSON matching this schema:\n"
             f"{json.dumps(schema.model_json_schema(), indent=2)}"
         )
-        raw = await self.complete(prompt + json_instruction, system=system, model=model)
-        # Extract JSON from response (handle markdown code blocks)
-        text = raw.text.strip()
-        if text.startswith("```"):
-            text = text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
-        return schema.model_validate_json(text)
+        last_error: Exception | None = None
+        for attempt in range(max_retries + 1):
+            raw = await self.complete(prompt + json_instruction, system=system, model=model)
+            # Extract JSON from response (handle markdown code blocks)
+            text = raw.text.strip()
+            if text.startswith("```"):
+                text = text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+            try:
+                return schema.model_validate_json(text)
+            except Exception as exc:
+                last_error = exc
+                logger.warning(
+                    "Structured parse failed (attempt %d/%d): %s",
+                    attempt + 1, max_retries + 1, exc,
+                )
+        raise ValueError(
+            f"Failed to parse structured LLM response after {max_retries + 1} attempts"
+        ) from last_error
 
     async def complete_batch(
         self,
@@ -155,7 +169,6 @@ class LLMProvider:
     ) -> list[RawGeneration]:
         """Run multiple prompts concurrently with rate limiting."""
         semaphore = asyncio.Semaphore(concurrency)
-        results: list[RawGeneration] = []
 
         async def _call(prompt: str) -> RawGeneration:
             async with semaphore:

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -26,15 +28,28 @@ class FilesystemStorage(StorageBackend):
         p.mkdir(parents=True, exist_ok=True)
         return p / f"{run_id}.json"
 
+    def _safe_blob_path(self, path: str) -> Path:
+        """Resolve blob path and guard against directory traversal.
+
+        Raises ``ValueError`` if the resolved path escapes the blob root.
+        """
+        blob_root = (self._base / "blobs").resolve()
+        resolved = (blob_root / path).resolve()
+        if not str(resolved).startswith(str(blob_root) + os.sep) and resolved != blob_root:
+            raise ValueError(f"Path traversal attempt detected: {path!r}")
+        return resolved
+
     async def save_document(self, collection: str, doc_id: str, data: dict[str, Any]) -> None:
         path = self._doc_path(collection, doc_id)
-        path.write_text(json.dumps(data, default=str, ensure_ascii=False), encoding="utf-8")
+        content = json.dumps(data, default=str, ensure_ascii=False)
+        await asyncio.to_thread(path.write_text, content, encoding="utf-8")
 
     async def load_document(self, collection: str, doc_id: str) -> dict[str, Any] | None:
         path = self._doc_path(collection, doc_id)
         if not path.exists():
             return None
-        return json.loads(path.read_text(encoding="utf-8"))
+        text = await asyncio.to_thread(path.read_text, encoding="utf-8")
+        return json.loads(text)
 
     async def list_documents(self, collection: str) -> list[str]:
         d = self._base / "documents" / collection
@@ -48,21 +63,23 @@ class FilesystemStorage(StorageBackend):
 
     async def save_state(self, run_id: str, state: dict[str, Any]) -> None:
         path = self._state_path(run_id)
-        path.write_text(json.dumps(state, default=str, ensure_ascii=False), encoding="utf-8")
+        content = json.dumps(state, default=str, ensure_ascii=False)
+        await asyncio.to_thread(path.write_text, content, encoding="utf-8")
 
     async def load_state(self, run_id: str) -> dict[str, Any] | None:
         path = self._state_path(run_id)
         if not path.exists():
             return None
-        return json.loads(path.read_text(encoding="utf-8"))
+        text = await asyncio.to_thread(path.read_text, encoding="utf-8")
+        return json.loads(text)
 
     async def save_blob(self, path: str, data: bytes) -> None:
-        p = self._base / "blobs" / path
-        p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_bytes(data)
+        p = self._safe_blob_path(path)
+        await asyncio.to_thread(p.parent.mkdir, parents=True, exist_ok=True)
+        await asyncio.to_thread(p.write_bytes, data)
 
     async def load_blob(self, path: str) -> bytes | None:
-        p = self._base / "blobs" / path
+        p = self._safe_blob_path(path)
         if not p.exists():
             return None
-        return p.read_bytes()
+        return await asyncio.to_thread(p.read_bytes)

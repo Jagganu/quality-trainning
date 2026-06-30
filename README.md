@@ -19,8 +19,34 @@ ForgeGravity is an open-source toolkit for creating synthetic training datasets.
 ## Architecture
 
 ```text
-Collect -> Clean -> Analyze -> Generate -> Verify -> Refine
-                                      \-> Benchmark -> Export
+┌─────────┐
+│ Collect │   Crawl and gather raw domain knowledge
+└────┬────┘
+     │
+┌────▼────┐
+│  Clean  │   Remove boilerplate, chunk, score quality
+└────┬────┘
+     │
+┌────▼────┐
+│ Analyze │   Extract topics, subtopics, and generation plan
+└────┬────┘
+     │
+┌────▼────────┐
+│  Generate   │   Sample LLM candidates (self-consistency)
+└────┬────────┘
+     │
+┌────▼────┐
+│ Verify  │   Judge ensemble, programmatic checks
+└────┬────┘
+     │
+  ┌──▼──┐     ┌───────────┐
+  │Refine│     │ Benchmark │
+  └──┬───┘     └─────┬─────┘
+     │               │
+     └──────┬────────┘
+         ┌──▼───┐
+         │Export│   Write JSONL + metrics report
+         └──────┘
 ```
 
 ### Quality Enhancements (v0.2)
@@ -46,8 +72,8 @@ Core concepts:
 ## Quick Start
 
 ```bash
-git clone https://github.com/Jagganu/quality-trainning.git
-cd quality-trainning
+git clone https://github.com/Jagganu/ForgeGravity.git
+cd ForgeGravity
 py -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -e ".[dev]"
 ```

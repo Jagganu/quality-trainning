@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -92,7 +92,7 @@ class QualityGateSettings(BaseSettings):
     """Configurable thresholds for quality gates."""
     max_duplicate_rate: float = 0.10
     min_diversity_score: float = 0.5
-    min_verification_score: float = 0.0
+    min_verification_score: float = 0.6  # require ≥60% pass rate by default
 
 
 class ForgeSettings(BaseSettings):
@@ -118,10 +118,11 @@ class ForgeSettings(BaseSettings):
     log_level: str = "INFO"
 
     # API keys
-    openai_api_key: str = ""
-    anthropic_api_key: str = ""
-    gemini_api_key: str = ""
-    openrouter_api_key: str = ""
+    # SecretStr prevents keys from appearing in logs, repr, or serialised output.
+    openai_api_key: SecretStr = SecretStr("")
+    anthropic_api_key: SecretStr = SecretStr("")
+    gemini_api_key: SecretStr = SecretStr("")
+    openrouter_api_key: SecretStr = SecretStr("")
     ollama_base_url: str = "http://localhost:11434"
 
     # Sub-settings (populated from forge.toml sections)

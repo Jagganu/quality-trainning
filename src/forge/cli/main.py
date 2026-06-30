@@ -117,14 +117,19 @@ def validate(
         raise typer.Exit(code=1)
 
     records: list[dict] = []
+    skipped = 0
     with open(path, "r", encoding="utf-8") as f:
-        for line in f:
+        for line_num, line in enumerate(f, 1):
             line = line.strip()
             if line:
                 try:
                     records.append(json.loads(line))
-                except json.JSONDecodeError:
-                    pass
+                except json.JSONDecodeError as exc:
+                    console.print(f"[yellow]  Line {line_num}: skipped — {exc}[/yellow]")
+                    skipped += 1
+
+    if skipped:
+        console.print(f"[yellow]Skipped {skipped} malformed line(s)[/yellow]")
 
     if not records:
         console.print("[red]No valid records found[/red]")
